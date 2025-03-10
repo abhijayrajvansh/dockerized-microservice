@@ -1,0 +1,12 @@
+
+
+
+
+
+
+
+
+
+
+
+    app: health-service  selector:    targetPort: 3000  - port: 80  ports:  type: LoadBalancerspec:  name: health-servicemetadata:kind: ServiceapiVersion: v1
