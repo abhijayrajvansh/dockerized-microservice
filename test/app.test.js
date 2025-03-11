@@ -68,6 +68,88 @@ describe('Application Tests', () => {
     });
   });
 
+  describe('CI/CD Configuration', () => {
+    it('should have valid CI/CD configuration files', () => {
+      // Check for common CI/CD config files
+      const possibleConfigPaths = [
+        path.join(__dirname, '..', '.github', 'workflows'),           // GitHub Actions
+        path.join(__dirname, '..', '.gitlab-ci.yml'),                 // GitLab CI
+        path.join(__dirname, '..', 'Jenkinsfile'),                    // Jenkins
+        path.join(__dirname, '..', '.circleci', 'config.yml'),        // CircleCI
+        path.join(__dirname, '..', '.travis.yml'),                    // Travis CI
+        path.join(__dirname, '..', 'azure-pipelines.yml')             // Azure DevOps
+      ];
+      
+      // Check if at least one CI/CD config exists
+      const hasValidConfig = possibleConfigPaths.some(configPath => {
+        return fs.existsSync(configPath);
+      });
+      
+      expect(hasValidConfig).toBe(true);
+    });
+    
+    it('should have CI/CD pipeline with required stages', () => {
+      // Find which CI/CD system is being used
+      let ciConfig = null;
+      let ciSystem = null;
+      
+      if (fs.existsSync(path.join(__dirname, '..', '.github', 'workflows'))) {
+        // Check GitHub Actions workflows
+        const workflowsDir = path.join(__dirname, '..', '.github', 'workflows');
+        const files = fs.readdirSync(workflowsDir);
+        if (files.length > 0) {
+          ciConfig = fs.readFileSync(path.join(workflowsDir, files[0]), 'utf8');
+          ciSystem = 'github';
+        }
+      } else if (fs.existsSync(path.join(__dirname, '..', '.gitlab-ci.yml'))) {
+        ciConfig = fs.readFileSync(path.join(__dirname, '..', '.gitlab-ci.yml'), 'utf8');
+        ciSystem = 'gitlab';
+      } else if (fs.existsSync(path.join(__dirname, '..', 'Jenkinsfile'))) {
+        ciConfig = fs.readFileSync(path.join(__dirname, '..', 'Jenkinsfile'), 'utf8');
+        ciSystem = 'jenkins';
+      } else if (fs.existsSync(path.join(__dirname, '..', '.circleci', 'config.yml'))) {
+        ciConfig = fs.readFileSync(path.join(__dirname, '..', '.circleci', 'config.yml'), 'utf8');
+        ciSystem = 'circleci';
+      } else if (fs.existsSync(path.join(__dirname, '..', '.travis.yml'))) {
+        ciConfig = fs.readFileSync(path.join(__dirname, '..', '.travis.yml'), 'utf8');
+        ciSystem = 'travis';
+      } else if (fs.existsSync(path.join(__dirname, '..', 'azure-pipelines.yml'))) {
+        ciConfig = fs.readFileSync(path.join(__dirname, '..', 'azure-pipelines.yml'), 'utf8');
+        ciSystem = 'azure';
+      }
+      
+      expect(ciConfig).not.toBeNull();
+      
+      // Check for essential CI stages based on the CI system
+      switch(ciSystem) {
+        case 'github':
+          expect(ciConfig).toMatch(/run: npm (test|run test)/);
+          expect(ciConfig).toMatch(/run: npm (build|run build|ci)/);
+          break;
+        case 'gitlab':
+          expect(ciConfig).toMatch(/test:/);
+          expect(ciConfig).toMatch(/build:/);
+          expect(ciConfig).toMatch(/deploy:/);
+          break;
+        case 'jenkins':
+          expect(ciConfig).toMatch(/stage\s*\(\s*['"]test['"]/);
+          expect(ciConfig).toMatch(/stage\s*\(\s*['"]build['"]/);
+          break;
+        case 'circleci':
+          expect(ciConfig).toMatch(/test:/);
+          expect(ciConfig).toMatch(/build:/);
+          break;
+        case 'travis':
+          expect(ciConfig).toMatch(/script:/);
+          break;
+        case 'azure':
+          expect(ciConfig).toMatch(/- script: npm test/);
+          expect(ciConfig).toMatch(/- script: npm (run build|build)/);
+          break;
+      }
+    });
+  });
+
   describe('Application Security', () => {
     it('should not expose sensitive headers', async () => {
       const res = await request(app).get('/health');
